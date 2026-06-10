@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+@import "../../../../actions/assets/src/styles/main.css";
+@import "../../../../forms/assets/src/styles/main.css";
+@import "../../../../schemas/assets/src/styles/main.css";
