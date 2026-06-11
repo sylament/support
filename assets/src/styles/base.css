@@ -4,7 +4,8 @@
 /*
   Filament base.css addition: buttons get a pointer cursor.
 */
-/*:where(.sy):where(button, [role='button']):not(:disabled),*/
-/*:where(.sy) :where(button, [role='button']):not(:disabled) {*/
-/*    cursor: pointer;*/
-/*}*/
+:where(.sy) {
+    :where(button, [role='button']):not(:disabled) {
+        cursor: pointer;
+    }
+}
