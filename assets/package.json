@@ -6,10 +6,10 @@
     "clean": "rm -rf dist",
     "build": "pnpm clean && pnpm test:types && pnpm build:js && pnpm build:css",
     "build:js": "esbuild src/**/*.ts --outdir=dist --outbase=src --format=esm --sourcemap=linked",
-    "build:css": "tailwindcss -i src/styles/main.css -o dist/styles/main.css --minify",
+    "build:css": "node scripts/scope-preflight.mjs && tailwindcss -i src/styles/main.css -o dist/styles/main.css --minify",
     "watch": "concurrently -n js,css -c blue,green \"pnpm watch:js\" \"pnpm watch:css\"",
     "watch:js": "esbuild src/**/*.ts --outdir=dist --outbase=src --format=esm --sourcemap=inline --watch=forever",
-    "watch:css": "tailwindcss -i src/styles/main.css -o dist/styles/main.css --watch",
+    "watch:css": "node scripts/scope-preflight.mjs && tailwindcss -i src/styles/main.css -o dist/styles/main.css --watch",
     "test:types": "tsc --noEmit"
   },
   "symfony": {
@@ -35,6 +35,7 @@
     "@tailwindcss/cli": "^4.3.0",
     "concurrently": "^10.0.3",
     "esbuild": "^0.28.0",
+    "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3"
   }
