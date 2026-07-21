@@ -9,6 +9,8 @@ use Sylament\Support\DependencyInjection\StaticInstanceInterface;
 use Sylament\Support\DependencyInjection\StaticInstanceRegistry;
 use Sylament\Support\Service\Invoker;
 use Sylament\Support\Twig\Extension\ComponentExtension;
+use Sylament\Support\Twig\Extension\GridExtension;
+use Sylament\Support\Twig\Extension\MarkupExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -74,6 +76,14 @@ class SylamentSupportBundle extends SylamentBundle
 
         $services
             ->set('sylament_support.component_extension', ComponentExtension::class)
+            ->tag('twig.extension');
+
+        $services
+            ->set('sylament_support.grid_extension', GridExtension::class)
+            ->tag('twig.extension');
+
+        $services
+            ->set('sylament_support.markup_extension', MarkupExtension::class)
             ->tag('twig.extension');
 
         $services
