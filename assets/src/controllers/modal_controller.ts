@@ -23,6 +23,13 @@ export default class extends Controller<HTMLDialogElement> {
 
   #escapeListener: ((event: KeyboardEvent) => void) | null = null;
 
+  #openAttributeObserver: MutationObserver | null = null;
+
+  connect(): void {
+    this.#observeOpenAttribute();
+    this.#normalizeModality();
+  }
+
   /**
    * Server-driven open state, and the only path that works for a modal rendered by the
    * same response that asks it to open. A `sylament-open-modal` event dispatched then is
@@ -40,7 +47,18 @@ export default class extends Controller<HTMLDialogElement> {
 
     if (this.element.open) {
       this.element.close();
+
+      return;
     }
+
+    // The `open` attribute mirrors this value, so a morph that hides a frame already
+    // removed it: close() would bail (the spec's close steps require the attribute) and
+    // fire no `close` event, leaving the teardown its handlers own undone. A hidden
+    // frame is still rendered and may re-open when the frame above it unmounts, so only
+    // the Escape listener is dropped here — focus stays where the newly-opened child
+    // put it, and #opener is kept so the original trigger is still the restore target.
+    // The gone-for-good case is disconnect(), which restores focus.
+    this.#teardownEscapeListener();
   }
 
   open(event: CustomEvent<{ id?: unknown }>): void {
@@ -87,11 +105,16 @@ export default class extends Controller<HTMLDialogElement> {
   }
 
   /**
-   * Emitted only for client-initiated closes (ESC, click-away, close button): a
-   * server-driven close flips the open value to false before calling close(), so the
-   * value still being true here means the server does not know yet.
+   * Emitted only for client-initiated closes (ESC, click-away, close button, cancel):
+   * a server-driven close flips the open value to false before calling close(), so the
+   * value still being true here means the server does not know yet. The `close` event
+   * arrives from a queued task, so a dialog re-shown in the meantime is not a dismissal.
    */
   notifyDismissed(): void {
+    if (this.element.open) {
+      return;
+    }
+
     this.#teardownEscapeListener();
 
     if (this.openValue) {
@@ -100,23 +123,43 @@ export default class extends Controller<HTMLDialogElement> {
   }
 
   restoreFocus(): void {
-    if (this.returnsFocusValue) {
-      this.#opener?.focus();
-    }
-
-    this.#opener = null;
-  }
-
-  disconnect(): void {
-    this.#teardownEscapeListener();
-  }
-
-  #show(): void {
     if (this.element.open) {
       return;
     }
 
-    this.#opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.#restoreOpenerFocus();
+  }
+
+  /**
+   * The element left the DOM: the frame is gone rather than hidden, so whatever the
+   * server-driven close skipped is settled here. A dialog removed while still open
+   * never fires `close`, and the browser drops focus to the body, so this is the only
+   * place a fully server-closed stack can hand focus back to its opener.
+   */
+  disconnect(): void {
+    this.#openAttributeObserver?.disconnect();
+    this.#openAttributeObserver = null;
+    this.#teardownEscapeListener();
+    this.#restoreOpenerFocus();
+  }
+
+  #show(): void {
+    this.#captureOpener();
+
+    if (this.element.open) {
+      if (this.clickThroughValue) {
+        // A parse-time `open` attribute already leaves a click-through dialog in exactly
+        // the non-modal state show() would produce, so there is nothing to re-show — only
+        // the Escape listener (never persisted in markup) is still missing.
+        this.#setupEscapeListener();
+
+        return;
+      }
+
+      this.#normalizeModality();
+
+      return;
+    }
 
     if (this.clickThroughValue) {
       this.element.show();
@@ -125,6 +168,81 @@ export default class extends Controller<HTMLDialogElement> {
       return;
     }
 
+    this.element.showModal();
+  }
+
+  /**
+   * Never overwrites: a frame that stays open across a morph — or is hidden under a
+   * child and later re-opened — keeps the trigger it was opened from, rather than
+   * picking up whatever a child dialog left focused. Cleared in #restoreOpenerFocus()
+   * once the frame really closes or leaves the DOM, so the next open captures fresh.
+   */
+  #captureOpener(): void {
+    if (this.#opener === null) {
+      this.#opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+  }
+
+  #restoreOpenerFocus(): void {
+    if (this.returnsFocusValue) {
+      this.#opener?.focus();
+    }
+
+    this.#opener = null;
+  }
+
+  /**
+   * The `open` attribute can change without any Stimulus callback firing: after a
+   * client-side dismissal the open value is still true in the DOM, so a live re-render
+   * landing before the `dismissed` round-trip completes morphs the attribute back onto
+   * this same element — no connect(), no openValueChanged(), and the dialog reappears
+   * open but not modal (no top layer, no backdrop, no focus trap, no `cancel`, and a
+   * dead closeOnClickAway — there is no backdrop for its target check to match). An
+   * attribute observer is the only hook that fires for that. It converges rather than
+   * loops: the removeAttribute()/showModal() pair that normalizing performs queues one
+   * more callback, and that one finds the dialog already `:modal` and returns.
+   */
+  #observeOpenAttribute(): void {
+    if (this.#openAttributeObserver !== null) {
+      return;
+    }
+
+    this.#openAttributeObserver = new MutationObserver((): void => {
+      this.#normalizeModality();
+    });
+
+    this.#openAttributeObserver.observe(this.element, {
+      attributes: true,
+      attributeFilter: ["open"],
+    });
+  }
+
+  /**
+   * A dialog whose `open` attribute arrived with the markup — a freshly morphed-in
+   * stack frame — is open but not modal: no top layer, no focus trap, no `cancel`
+   * event (the close watcher the setup steps install is only enabled while `:modal`
+   * is true, so ESC is a no-op until this promotes it). Removing the attribute
+   * (rather than calling close()) runs the dialog cleanup steps without firing
+   * `close`, so re-showing it modally emits no spurious dismissal and never paints
+   * a closed frame.
+   *
+   * Those cleanup steps — here, and whenever a parent is hidden by a morph while a
+   * child is on top — only drop the dialog from the open-dialogs list and destroy
+   * its close watcher; they do not clear the `is modal` flag or remove it from the
+   * top layer (only close()'s algorithm does that). A hidden parent frame therefore
+   * sits at `:modal` true, still top-layered, just unrendered by the UA stylesheet's
+   * `dialog:not([open]) { display: none }`. That is what makes re-opening it cheap:
+   * this method sees `element.open` and `matches(":modal")` both true and returns
+   * early, with no removeAttribute()/showModal() round trip, because the frame was
+   * never de-modalised, only un-rendered, and the setup steps re-run when `open` is
+   * re-added restore its close watcher on their own.
+   */
+  #normalizeModality(): void {
+    if (!this.element.open || this.clickThroughValue || this.element.matches(":modal")) {
+      return;
+    }
+
+    this.element.removeAttribute("open");
     this.element.showModal();
   }
 
