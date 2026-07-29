@@ -6,16 +6,10 @@ namespace Sylament\Support\DependencyInjection;
 
 use Psr\Container\ContainerInterface;
 use Sylament\Support\Components\Component;
+use Sylament\Support\DependencyInjection\Concerns\HasStaticInstance;
+use Sylament\Support\DependencyInjection\Contracts\StaticInstance;
 
-/**
- * Builds component instances for the `make()` factories. When the container
- * knows the class — i.e. the app registered it, so autoconfiguration tagged it
- * — it comes from a locator of non-shared definitions, fully autowired and
- * fresh per call. Otherwise it is constructed directly, which is the path for
- * Sylament's own components (they live in vendor and are never registered) and
- * for every kernel-free Unit test.
- */
-final class ComponentResolver implements StaticInstanceInterface
+final class ComponentResolver implements StaticInstance
 {
     use HasStaticInstance;
 
@@ -24,7 +18,7 @@ final class ComponentResolver implements StaticInstanceInterface
     ) {
     }
 
-    public static function resolve(): static
+    public static function resolve(): self
     {
         if (!self::$instance instanceof self) {
             self::setInstance(new self());

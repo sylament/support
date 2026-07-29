@@ -6,19 +6,20 @@ namespace Sylament\Support;
 
 use RuntimeException;
 use Sylament\Support\Components\Component;
-use Sylament\Support\Components\ComponentManager;
+use Sylament\Support\Configuration\ComponentManager;
 use Sylament\Support\DependencyInjection\Compiler\ComponentResolverPass;
 use Sylament\Support\DependencyInjection\Compiler\StaticInstancePass;
 use Sylament\Support\DependencyInjection\ComponentResolver;
-use Sylament\Support\DependencyInjection\StaticInstanceInterface;
+use Sylament\Support\DependencyInjection\Contracts\StaticInstance;
 use Sylament\Support\DependencyInjection\StaticInstanceRegistry;
-use Sylament\Support\Icons\IconManager;
 use Sylament\Support\Evaluation\Invoker;
+use Sylament\Support\Icons\IconManager;
 use Sylament\Support\Twig\Extension\AttributeExtension;
 use Sylament\Support\Twig\Extension\ComponentExtension;
 use Sylament\Support\Twig\Extension\GridExtension;
 use Sylament\Support\Twig\Extension\IconExtension;
 use Sylament\Support\Twig\Extension\MarkupExtension;
+use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -29,6 +30,8 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_it
 
 class SylamentSupportBundle extends SylamentBundle
 {
+    protected string $extensionAlias = 'sylament';
+
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
@@ -47,12 +50,24 @@ class SylamentSupportBundle extends SylamentBundle
         $this->bootStaticInstances();
     }
 
+    public function configure(DefinitionConfigurator $definition): void
+    {
+        $definition->rootNode()
+            ->children()
+                ->arrayNode('icons')
+                    ->info('Icon overrides keyed by alias, e.g. "modal.close-button: lucide:x".')
+                    ->normalizeKeys(false)
+                    ->scalarPrototype()->end()
+                ->end()
+            ->end();
+    }
+
     /**
-     * @param array<string, mixed> $config
+     * @param array{icons?: array<string, string>} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $configurator, ContainerBuilder $container): void
     {
-        $this->configureServices($configurator);
+        $this->configureServices($configurator, $config['icons'] ?? []);
     }
 
     public function prependExtension(ContainerConfigurator $configurator, ContainerBuilder $container): void
@@ -75,14 +90,22 @@ class SylamentSupportBundle extends SylamentBundle
         $registry->bootStaticInstances();
     }
 
-    private function configureServices(ContainerConfigurator $configurator): void
+    /**
+     * @param array<string, string> $icons
+     */
+    private function configureServices(ContainerConfigurator $configurator, array $icons): void
     {
         $services = $configurator->services();
 
         $services
+            ->load(__NAMESPACE__ . '\\Components\\', __DIR__ . '/Components/*.php')
+            ->autowire()
+            ->autoconfigure();
+
+        $services
             ->set('sylament_support.static_instance_registry', StaticInstanceRegistry::class)
             ->args([
-                '$services' => tagged_iterator(StaticInstanceInterface::class),
+                '$services' => tagged_iterator(StaticInstance::class),
             ])
             ->alias(StaticInstanceRegistry::class, 'sylament_support.static_instance_registry')
             ->public();
@@ -93,7 +116,8 @@ class SylamentSupportBundle extends SylamentBundle
 
         $services
             ->set('sylament_support.component_extension', ComponentExtension::class)
-            ->tag('twig.extension');
+            ->tag('twig.extension')
+            ->alias(ComponentExtension::class, 'sylament_support.component_extension');
 
         $services
             ->set('sylament_support.grid_extension', GridExtension::class)
@@ -101,6 +125,7 @@ class SylamentSupportBundle extends SylamentBundle
 
         $services
             ->set('sylament_support.icon_extension', IconExtension::class)
+            ->autowire()
             ->tag('twig.extension');
 
         $services
@@ -124,6 +149,7 @@ class SylamentSupportBundle extends SylamentBundle
             ->args([
                 '$renderer' => service(IconRendererInterface::class)->nullOnInvalid(),
             ])
+            ->call('register', [$icons])
             ->alias(IconManager::class, 'sylament_support.icon_manager');
 
         $services

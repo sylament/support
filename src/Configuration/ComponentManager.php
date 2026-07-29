@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Sylament\Support\Components;
+namespace Sylament\Support\Configuration;
 
 use Closure;
 use ReflectionMethod;
-use Sylament\Support\DependencyInjection\HasStaticInstance;
-use Sylament\Support\DependencyInjection\StaticInstanceInterface;
+use Sylament\Support\Components\Component;
+use Sylament\Support\DependencyInjection\Concerns\HasStaticInstance;
+use Sylament\Support\DependencyInjection\Contracts\StaticInstance;
 
-class ComponentManager implements StaticInstanceInterface
+class ComponentManager implements StaticInstance
 {
     use HasStaticInstance;
 
@@ -47,9 +48,8 @@ class ComponentManager implements StaticInstanceInterface
     }
 
     /**
-     * Registers a closure applied to every subsequently configured instance of the class.
-     * Returns a closure that removes the registration, or, when `$during` is given, keeps
-     * the registration only while `$during()` runs and returns its result.
+     * Returns a closure that removes the registration, or, when `$during` is given,
+     * `$during()`'s own result.
      *
      * @param class-string $component
      */
@@ -90,11 +90,6 @@ class ComponentManager implements StaticInstanceInterface
         }
     }
 
-    /**
-     * Walks the component's class hierarchy root-first, calling `$setUp` when the class
-     * declaring `setUp()` is reached and each class's registered configuration closures
-     * after it; important configuration closures run last, again in hierarchy order.
-     */
     public function configure(Component $component, Closure $setUp): void
     {
         $componentClass = $component::class;

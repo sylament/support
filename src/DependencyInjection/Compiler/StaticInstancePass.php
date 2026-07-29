@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Sylament\Support\DependencyInjection\Compiler;
 
-use Throwable;
-use Sylament\Support\DependencyInjection\StaticInstanceInterface;
+use Sylament\Support\DependencyInjection\Contracts\StaticInstance;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Throwable;
 
 final class StaticInstancePass implements CompilerPassInterface
 {
@@ -24,22 +24,14 @@ final class StaticInstancePass implements CompilerPassInterface
                 continue;
             }
 
-            $definition->addTag(StaticInstanceInterface::class);
+            $definition->addTag(StaticInstance::class);
         }
     }
 
-    /**
-     * Whether the service class implements {@see StaticInstanceInterface},
-     * tolerating classes that cannot be autoloaded. A bundle may register a
-     * service whose class extends an optional dependency that is not installed
-     * (e.g. LiveComponent's `form.live_collection` extending Symfony Form's
-     * `AbstractType` when `symfony/form` is absent); autoloading it throws.
-     * Such a class is never a StaticInstance, so skipping it is safe.
-     */
     private function implementsStaticInstance(string $class): bool
     {
         try {
-            return is_a($class, StaticInstanceInterface::class, true);
+            return is_a($class, StaticInstance::class, true);
         } catch (Throwable) {
             return false;
         }

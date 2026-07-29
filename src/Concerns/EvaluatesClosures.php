@@ -7,10 +7,25 @@ namespace Sylament\Support\Concerns;
 use Closure;
 use Sylament\Support\Evaluation\ClosureParameter;
 use Sylament\Support\Evaluation\Invoker;
+use Symfony\Component\DependencyInjection\Container;
+use Symfony\Contracts\Service\Attribute\Required;
 
 trait EvaluatesClosures
 {
     protected string $evaluationIdentifier;
+
+    private Invoker $invoker;
+
+    #[Required]
+    public function setInvoker(Invoker $invoker): void
+    {
+        $this->invoker = $invoker;
+    }
+
+    public function getInvoker(): Invoker
+    {
+        return $this->invoker ??= new Invoker(new Container());
+    }
 
     /**
      * @template T
@@ -25,7 +40,7 @@ trait EvaluatesClosures
             return $value;
         }
 
-        return Invoker::getInstance()->call(
+        return $this->getInvoker()->call(
             $value,
             $namedInjections,
             $typedInjections,

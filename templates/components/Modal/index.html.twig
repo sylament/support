@@ -1,31 +1,40 @@
 {% props
-    alignment = 'start',
-    autofocus = true,
+    id = null,
+
+    open = false,
+    overlaid = false,
     clickThrough = false,
-    closeButton = true,
-    closeByClickingAway = true,
-    closeByEscaping = true,
-    content = markup(block('content') ?? null),
-    description = null,
-    extraOverlayAttributes = {},
-    extraWindowAttributes = {},
-    footer = markup(block('footer') ?? null),
-    footerActions = [],
-    footerActionsAlignment = null,
+
     heading = null,
+    description = null,
     icon = null,
     iconAlias = null,
     iconColor = 'primary',
-    id = null,
-    open = false,
-    overlaid = false,
-    returnsFocus = true,
+
+    content = markup(block('content') ?? null),
+
+    footer = markup(block('footer') ?? null),
+    footerActions = [],
+    footerActionsAlignment = null,
+
+    width = 'md',
+    alignment = 'start',
     slideOver = false,
     slideOverPosition = 'end',
     stickyHeader = false,
     stickyFooter = false,
+
+    closeButton = true,
+    closeByClickingAway = true,
+    closeByEscaping = true,
+    autofocus = true,
+    returnsFocus = true,
+
     submitHandler = null,
-    width = 'md' %}
+
+    extraWindowAttributes = {},
+    extraOverlayAttributes = {}
+%}
 
 {% set iconColorName = iconColor is iterable or iconColor is empty ? 'gray' : iconColor %}
 {% set iconHtml = generateIconHtml(icon, iconAlias, {
@@ -81,10 +90,6 @@
 
 {% set overlayExtra = extraOverlayAttributes ?: {} %}
 
-{# The `open` attribute mirrors the Stimulus value: the value is intent, the attribute
-   is native state. Rendering both from one prop keeps a live re-render from morphing
-   the attribute off an already-open dialog and closing it (Idiomorph diffs attributes,
-   and a stack keeps parent dialogs open across renders). #}
 <dialog
     {{ attributes.defaults({
         class: classes('sy sy-modal', {
@@ -117,9 +122,13 @@
         }),
         autofocus: windowGetsInitialFocus,
         tabindex: windowGetsInitialFocus ? '-1' : false,
-    }, extraWindowAttributes ?: {}) }}{% if hasSubmitHandler %} {{ live_action(submitHandler ~ ':prevent', {}, {}, 'submit') }}{% endif %}>
+    }, extraWindowAttributes ?: {}) }}
+        {% if hasSubmitHandler %}
+            {{ live_action(submitHandler ~ ':prevent', event: 'submit') }}
+        {% endif %}
+    >
         {% if hasHeader %}
-            <header {{ attrs({ class: classes('sy-modal-header', { 'sy-vertical-align-center': verticalAlignCenter }) }) }}>
+            <header {{ attrs({class: classes('sy-modal-header', {'sy-vertical-align-center': verticalAlignCenter})}) }}>
                 {% if hasCloseButton %}
                     <twig:SylamentSupport:IconButton
                         class="sy-modal-close-btn"
@@ -140,11 +149,11 @@
                 {% if hasHeading or hasDescription %}
                     <div class="sy-modal-header-text-ctn">
                         {% if hasHeading %}
-                            <h2 {{ attrs({ id: headingId, class: ['sy-modal-heading'] }) }}>{{ heading }}</h2>
+                            <h2 {{ attrs({id: headingId, class: ['sy-modal-heading']}) }}>{{ heading }}</h2>
                         {% endif %}
 
                         {% if hasDescription %}
-                            <p {{ attrs({ id: descriptionId, class: ['sy-modal-description'] }) }}>{{ description }}</p>
+                            <p {{ attrs({id: descriptionId, class: ['sy-modal-description']}) }}>{{ description }}</p>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -156,7 +165,7 @@
         {% endif %}
 
         {% if hasFooter %}
-            <footer {{ attrs({ class: classes('sy-modal-footer', { (footerAlignmentClass ?? ''): footerAlignmentClass is not empty }) }) }}>
+            <footer {{ attrs({class: classes('sy-modal-footer', {(footerAlignmentClass ?? ''): footerAlignmentClass is not empty})}) }}>
                 {% if hasFooterSlot %}
                     {{ footer }}
                 {% else %}
