@@ -23,23 +23,22 @@
 {% set knownWeights = ['thin', 'extralight', 'light', 'normal', 'medium', 'semibold', 'bold', 'extrabold', 'black'] %}
 {% set sizeValue = size.value ?? size %}
 {% set weightValue = weight.value ?? weight %}
-{% set colorName = color is iterable or color is empty ? 'gray' : color %}
+{% set colorAttrs = colorAttributes('Sylament\\Support\\Colors\\Components\\LinkComponent', color) %}
 {% set iconPositionValue = iconPosition.value ?? iconPosition %}
 {% set iconSize = iconSize ?? (sizeValue in ['xs', 'sm'] ? 'sm' : null) %}
 {% set iconHtml = icon ? generateIconHtml(icon, iconAlias, size: iconSize) : null %}
 {% set ariaLabel = labelSrOnly ? (content ?? '')|striptags|trim : null %}
 
 <{{ tag }}
-    {{ attributes.defaults({
+    {{ attributes.without('style').defaults({
         class: classes('sy sy-link', {
             'sy-disabled': disabled,
             ('sy-size-' ~ sizeValue): sizeValue in knownSizes,
             (sizeValue ?? ''): sizeValue is not empty and sizeValue not in knownSizes,
             ('sy-font-' ~ weightValue): weightValue in knownWeights,
             (weightValue ?? ''): weightValue is not empty and weightValue not in knownWeights,
-            'sy-color': colorName != 'gray',
-            ('sy-color-' ~ colorName): colorName != 'gray',
-        }),
+        }, colorAttrs.class),
+        style: styles(colorAttrs.style, attributes.all.style ?? null) ?: false,
         'aria-disabled': disabled ? 'true' : false,
         'aria-label': ariaLabel ?: false,
         disabled: disabled and tag == 'button',
