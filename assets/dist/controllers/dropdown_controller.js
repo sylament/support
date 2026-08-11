@@ -1333,7 +1333,8 @@ var dropdown_controller_default = class extends Controller {
   static values = {
     placement: { type: String, default: "bottom-start" },
     offset: { type: Number, default: 8 },
-    flip: { type: Boolean, default: true }
+    flip: { type: Boolean, default: true },
+    teleport: { type: Boolean, default: false }
   };
   #stopPositioning = null;
   #onPointerDown = (event) => {
@@ -1385,8 +1386,10 @@ var dropdown_controller_default = class extends Controller {
     this.#syncExpanded(false);
   }
   async #position() {
+    this.panelTarget.style.position = this.teleportValue ? "fixed" : "";
     const { x, y } = await computePosition2(this.triggerTarget, this.panelTarget, {
       placement: this.placementValue,
+      strategy: this.teleportValue ? "fixed" : "absolute",
       middleware: [
         offset2(this.offsetValue),
         ...this.flipValue ? [flip2()] : [],
