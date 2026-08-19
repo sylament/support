@@ -111,7 +111,7 @@ class SylamentSupportBundle extends SylamentBundle
             ->autoconfigure();
 
         // `ColorManager` resolves a policy from the service container by class-string, and a
-        // private service is not reachable through `Container::get()`, so both globs stay public.
+        // private service is not reachable through `Container::get()`, so every glob stays public.
         $services
             ->load(__NAMESPACE__ . '\\Colors\\Components\\', __DIR__ . '/Colors/Components/*.php')
             ->autowire()
@@ -119,6 +119,11 @@ class SylamentSupportBundle extends SylamentBundle
 
         $services
             ->load(__NAMESPACE__ . '\\Colors\\Components\\', __DIR__ . '/Colors/Components/*/*.php')
+            ->autowire()
+            ->public();
+
+        $services
+            ->load(__NAMESPACE__ . '\\Colors\\Components\\', __DIR__ . '/Colors/Components/*/*/*.php')
             ->autowire()
             ->public();
 
@@ -152,7 +157,8 @@ class SylamentSupportBundle extends SylamentBundle
         $services
             ->set('sylament_support.icon_extension', IconExtension::class)
             ->autowire()
-            ->tag('twig.extension');
+            ->tag('twig.extension')
+            ->alias(IconExtension::class, 'sylament_support.icon_extension');
 
         $services
             ->set('sylament_support.markup_extension', MarkupExtension::class)

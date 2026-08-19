@@ -7,6 +7,7 @@ namespace Sylament\Support\Tests\Integration;
 use Sylament\Support\Colors\Color;
 use Sylament\Support\Colors\ColorManager;
 use Sylament\Support\Colors\Components\BadgeComponent;
+use Sylament\Support\Colors\Components\InputComponent\WrapperComponent\IconComponent as InputWrapperIconComponent;
 use Sylament\Support\Configuration\ComponentManager;
 use Sylament\Support\DependencyInjection\Contracts\StaticInstance;
 use Sylament\Support\DependencyInjection\StaticInstanceRegistry;
@@ -57,6 +58,14 @@ it('exposes a colour policy on the public container', function (): void {
     expect($container->get(BadgeComponent::class))->toBeInstanceOf(BadgeComponent::class);
 });
 
+it('exposes a colour policy nested two directories deep on the public container', function (): void {
+    // The wrapper icon policy sits one level below every other nested policy, so only the
+    // third `Colors/Components/*/*/*.php` glob reaches it.
+    $container = $this::bootKernel()->getContainer();
+
+    expect($container->get(InputWrapperIconComponent::class))->toBeInstanceOf(InputWrapperIconComponent::class);
+});
+
 it('keeps a dashed colour key that config normalization would otherwise rewrite', function (): void {
     $container = new ContainerBuilder();
 
@@ -77,6 +86,10 @@ it('injects the icon manager into the icon extension', function (): void {
 
     expect($extension)->toBeInstanceOf(IconExtension::class)
         ->and($extension->generateIconHtml('heroicons:x-mark'))->not->toBeNull();
+});
+
+it('aliases the icon extension by class-string so a service can autowire it', function (): void {
+    expect($this::getContainer()->get(IconExtension::class))->toBeInstanceOf(IconExtension::class);
 });
 
 it('renders icons from the fixture icon directory through the ux-icons renderer', function (): void {
